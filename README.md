@@ -54,8 +54,9 @@ php artisan vendor:publish --tag="wonder-ab-config"
     @condition('get-started')
         <h1>Ready to Get Started?</h1>
     @track('signup')
-@endab
 ```
+
+**Note**: `@track` ends the experiment block - there is no `@endab` directive.
 
 ### 2. Track Goals
 
@@ -66,13 +67,14 @@ php artisan vendor:publish --tag="wonder-ab-config"
     @condition('yearly')
         <button>$99/year</button>
     @track('purchase')
-@endab
 
-{{-- Later in your code --}}
-@php
-    Ab::goal('purchase', 99.00); // Track with value
-@endphp
+{{-- Later in your code, when purchase is completed --}}
+@goal('purchase', 99.00)
 ```
+
+**How it works**:
+- `@track('purchase')` - Associates this experiment with the "purchase" goal
+- `@goal('purchase', 99.00)` - Records that the goal was achieved (with optional value)
 
 ### 3. Controller-Based Tests
 
@@ -89,15 +91,22 @@ $variant = Ab::choice('checkout-flow', [
 
 ### 4. Weighted Variants
 
+Control traffic distribution with weights in square brackets:
+
 ```blade
 @ab('feature-test')
     @condition('new-feature[80]')
-        {{-- 80% of users see this --}}
+        <div class="new-design">New Feature</div>
     @condition('old-feature[20]')
-        {{-- 20% of users see this --}}
+        <div class="old-design">Old Feature</div>
     @track('conversion')
-@endab
 ```
+
+**Weights explained**:
+- `'new-feature[80]'` - 80% probability
+- `'old-feature[20]'` - 20% probability
+- Weights are relative: `[80]` and `[20]` = 80:20 ratio
+- Without weights, all variants have equal probability
 
 ### 5. Nested Tests
 
@@ -111,12 +120,10 @@ $variant = Ab::choice('checkout-flow', [
                 @condition('blue')
                     <button class="bg-blue">Sign Up</button>
                 @track('click')
-            @endab
         </div>
     @condition('classic')
         <div class="classic-layout">...</div>
     @track('engagement')
-@endab
 ```
 
 ## Analytics Setup
