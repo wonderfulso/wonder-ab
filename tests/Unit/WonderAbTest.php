@@ -18,6 +18,17 @@ test('it can create instance', function () {
     expect($instance->instance)->not->toBeNull();
 });
 
+test('it can get instance id', function () {
+    $ab = app()->make('Ab');
+    $ab::initUser();
+
+    $instanceId = $ab::getInstanceId();
+
+    expect($instanceId)->toBeString();
+    expect($instanceId)->not->toBeEmpty();
+    expect($instanceId)->toBe($ab::getSession()->instance);
+});
+
 test('it preserves instance across calls', function () {
     $ab = app()->make('Ab');
     $ab::initUser();

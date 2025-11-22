@@ -7,9 +7,14 @@ This document provides technical details for developers who want to contribute t
 - [Architecture](#architecture)
 - [Database Schema](#database-schema)
 - [Custom Analytics Drivers](#custom-analytics-drivers)
+- [Webhook Goal Registration API](#webhook-goal-registration-api)
 - [Testing](#testing)
 - [Code Quality](#code-quality)
+- [Authentication Strategies](#authentication-strategies)
+- [Cache Strategy](#cache-strategy)
+- [Rate Limiting](#rate-limiting)
 - [Contributing](#contributing)
+- [Debugging](#debugging)
 
 ## Architecture
 
@@ -454,6 +459,328 @@ if ($rateLimiter->tooManyAttempts($rateKey, $maxAttempts)) {
     throw new ThrottleRequestsException('Too many instance ID overrides');
 }
 ```
+
+## Webhook Goal Registration API
+
+Wonder AB provides a secure webhook endpoint for external services to register goals. This is useful for tracking server-side conversions like "payment completed" or "user verified email".
+
+### Architecture
+
+**Components:**
+- **Route**: `POST /api/ab/webhook/goal` (defined in `routes/api.php`)
+- **Controller**: `WebhookController::receiveGoal()`
+- **Middleware**: `VerifyWebhookSignature` (HMAC-SHA256 verification)
+- **Rate Limiter**: Named limiter `wonder-ab-webhook` (60/min per IP)
+
+**Request Flow:**
+1. Client calculates HMAC-SHA256 signature of JSON payload
+2. POST request to `/api/ab/webhook/goal` with `X-AB-Signature` header
+3. `VerifyWebhookSignature` middleware validates signature
+4. Rate limiter checks IP-based throttling
+5. Controller validates payload and timestamps
+6. Idempotency check via cache
+7. Goal created and associated with instance
+8. Analytics triggered automatically
+9. Response with goal ID and instance ID
+
+### Security Features
+
+**1. Signature Verification (HMAC-SHA256)**
+
+```php
+// Server calculates expected signature
+$payload = $request->getContent();
+$expectedSignature = hash_hmac('sha256', $payload, $secret);
+
+// Timing-safe comparison
+if (!hash_equals($expectedSignature, $providedSignature)) {
+    return 401; // Unauthorized
+}
+```
+
+**2. Timestamp Validation**
+
+```php
+// Prevents replay attacks
+$timestamp = Carbon::parse($data['timestamp']);
+$tolerance = config('wonder-ab.webhook.timestamp_tolerance', 300); // 5 min
+
+if ($timestamp->diffInSeconds($now, false) > $tolerance || $timestamp->isFuture()) {
+    return 422; // Invalid timestamp
+}
+```
+
+**3. Idempotency**
+
+```php
+// Prevents duplicate goal registration
+$idempotencyKey = 'webhook_idempotency:' . $data['idempotency_key'];
+if (Cache::has($idempotencyKey)) {
+    return cached response; // 200 with duplicate flag
+}
+
+// Cache result for 24 hours (configurable)
+Cache::put($idempotencyKey, $result, $ttl);
+```
+
+**4. Rate Limiting**
+
+```php
+RateLimiter::for('wonder-ab-webhook', function (Request $request) {
+    return Limit::perMinute(config('wonder-ab.webhook.rate_limit', 60))
+        ->by($request->ip());
+});
+```
+
+### Retrieving Instance ID
+
+Before redirecting users to external services, retrieve the current user's instance ID:
+
+```php
+use Wonderfulso\WonderAb\Facades\Ab;
+
+// In your controller
+public function checkout()
+{
+    $instanceId = Ab::getInstanceId();
+
+    // Pass to external payment processor
+    return redirect()->away("https://payment-processor.com/checkout", [
+        'return_id' => $instanceId,
+        'return_url' => route('payment.success'),
+    ]);
+}
+```
+
+The external service can then include this instance ID when calling your webhook endpoint.
+
+**Alternative methods:**
+```php
+// Using the session object
+$instance = Ab::getSession();
+$instanceId = $instance->instance;
+
+// Direct access to instance property
+$instanceId = Ab::getInstanceId(); // Recommended convenience method
+```
+
+### Request Format
+
+**Endpoint**: `POST /api/ab/webhook/goal`
+
+**Headers:**
+```
+Content-Type: application/json
+X-AB-Signature: <hmac-sha256-signature>
+```
+
+**Payload:**
+```json
+{
+  "instance": "abc123def456...",           // Required: 32-char instance ID (from Ab::getInstanceId())
+  "goal": "purchase",                       // Required: goal name
+  "value": "99.99",                         // Optional: goal value
+  "timestamp": "2024-11-21T12:00:00+00:00", // Required: ISO 8601 (within 5 min)
+  "idempotency_key": "unique-request-id"    // Required: prevents duplicates
+}
+```
+
+**Success Response (201 Created):**
+```json
+{
+  "success": true,
+  "goal_id": 123,
+  "instance_id": 456,
+  "message": "Goal registered successfully"
+}
+```
+
+**Duplicate Response (200 OK):**
+```json
+{
+  "success": true,
+  "goal_id": 123,
+  "instance_id": 456,
+  "message": "Goal already registered (idempotent)",
+  "duplicate": true
+}
+```
+
+**Error Responses:**
+- `401` - Missing or invalid signature
+- `403` - Webhook endpoint disabled
+- `404` - Instance not found
+- `422` - Validation failed (invalid fields, old timestamp, etc.)
+- `429` - Rate limit exceeded
+- `500` - Server error (secret not configured)
+
+### Configuration
+
+```php
+'webhook' => [
+    'enabled' => env('WONDER_AB_WEBHOOK_ENABLED', false),
+    'secret' => env('WONDER_AB_WEBHOOK_SECRET'),          // Generate with artisan command
+    'path' => env('WONDER_AB_WEBHOOK_PATH', '/ab/webhook/goal'),
+    'rate_limit' => env('WONDER_AB_WEBHOOK_RATE_LIMIT', 60),
+    'timestamp_tolerance' => env('WONDER_AB_WEBHOOK_TIMESTAMP_TOLERANCE', 300), // seconds
+    'idempotency_ttl' => env('WONDER_AB_WEBHOOK_IDEMPOTENCY_TTL', 86400),      // seconds
+],
+```
+
+### Client Implementation Examples
+
+**PHP (with Guzzle):**
+```php
+use GuzzleHttp\Client;
+
+$secret = config('services.wonder_ab.webhook_secret');
+$payload = [
+    'instance' => $user->ab_instance_id,
+    'goal' => 'purchase',
+    'value' => $order->total,
+    'timestamp' => now()->toIso8601String(),
+    'idempotency_key' => 'order_' . $order->id,
+];
+
+$body = json_encode($payload);
+$signature = hash_hmac('sha256', $body, $secret);
+
+$client = new Client();
+$response = $client->post('https://yoursite.com/api/ab/webhook/goal', [
+    'headers' => [
+        'Content-Type' => 'application/json',
+        'X-AB-Signature' => $signature,
+    ],
+    'body' => $body,
+]);
+```
+
+**Node.js:**
+```javascript
+const crypto = require('crypto');
+const axios = require('axios');
+
+const secret = process.env.WONDER_AB_WEBHOOK_SECRET;
+const payload = {
+  instance: user.abInstanceId,
+  goal: 'signup',
+  timestamp: new Date().toISOString(),
+  idempotency_key: `signup_${user.id}`,
+};
+
+const body = JSON.stringify(payload);
+const signature = crypto
+  .createHmac('sha256', secret)
+  .update(body)
+  .digest('hex');
+
+await axios.post('https://yoursite.com/api/ab/webhook/goal', payload, {
+  headers: {
+    'Content-Type': 'application/json',
+    'X-AB-Signature': signature,
+  },
+});
+```
+
+**Python:**
+```python
+import hmac
+import hashlib
+import json
+import requests
+from datetime import datetime
+
+secret = os.getenv('WONDER_AB_WEBHOOK_SECRET')
+payload = {
+    'instance': user.ab_instance_id,
+    'goal': 'trial_started',
+    'timestamp': datetime.utcnow().isoformat() + 'Z',
+    'idempotency_key': f'trial_{user.id}',
+}
+
+body = json.dumps(payload)
+signature = hmac.new(
+    secret.encode(),
+    body.encode(),
+    hashlib.sha256
+).hexdigest()
+
+response = requests.post(
+    'https://yoursite.com/api/ab/webhook/goal',
+    data=body,
+    headers={
+        'Content-Type': 'application/json',
+        'X-AB-Signature': signature,
+    }
+)
+```
+
+### Testing
+
+**Generate Secret:**
+```bash
+php artisan ab:webhook-secret
+```
+
+**Test Webhook:**
+```bash
+# Set environment variables
+export WONDER_AB_WEBHOOK_ENABLED=true
+export WONDER_AB_WEBHOOK_SECRET="your-secret-here"
+
+# Run test suite
+vendor/bin/pest tests/Feature/WebhookGoalTest.php
+```
+
+**Test Cases Covered:**
+- ✓ Signature verification (valid/invalid/missing)
+- ✓ Payload validation (required fields, formats)
+- ✓ Timestamp validation (old/future timestamps)
+- ✓ Instance existence check
+- ✓ Idempotency (duplicate requests)
+- ✓ Rate limiting
+- ✓ Goal creation with/without value
+- ✓ Webhook disabled state
+
+### Common Integration Patterns
+
+**1. Payment Gateway Webhooks:**
+```php
+// Stripe webhook handler
+public function handleStripeWebhook(Request $request)
+{
+    $event = $request->all();
+
+    if ($event['type'] === 'payment_intent.succeeded') {
+        $metadata = $event['data']['object']['metadata'];
+
+        // Send to Wonder AB
+        WonderAbWebhook::send([
+            'instance' => $metadata['ab_instance'],
+            'goal' => 'purchase',
+            'value' => $event['data']['object']['amount'] / 100,
+        ]);
+    }
+}
+```
+
+**2. Background Jobs:**
+```php
+// Laravel job
+class TrackEmailVerification implements ShouldQueue
+{
+    public function handle()
+    {
+        WonderAbWebhook::send([
+            'instance' => $this->user->ab_instance_id,
+            'goal' => 'email_verified',
+        ]);
+    }
+}
+```
+
+**3. Third-Party Services (Zapier, n8n):**
+Configure webhook actions to POST to your Wonder AB endpoint with proper signature generation.
 
 ## Contributing
 

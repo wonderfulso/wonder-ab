@@ -13,6 +13,7 @@ use Wonderfulso\WonderAb\Models\Instance;
  * @method static \Wonderfulso\WonderAb\WonderAb choice(string $experiment, array $conditions)
  * @method static void resetSession()
  * @method static Instance|null getSession()
+ * @method static string|null getInstanceId()
  * @method static array getActiveTests()
  * @method static void sendEvent(string $event, mixed $payload)
  *
