@@ -103,6 +103,43 @@ test('weighted conditions work with choice method', function () {
     expect($experiment)->toBeInstanceOf(Wonderfulso\WonderAb\WonderAb::class);
 });
 
+test('weighted conditions distribute traffic correctly', function () {
+    $results = ['heavy' => 0, 'light' => 0];
+
+    // Run 500 experiments to test distribution
+    for ($i = 0; $i < 500; $i++) {
+        $ab = app()->make('Ab');
+        $ab::resetSession();
+        session()->flush(); // Force new instance each time
+
+        $ab::initUser();
+
+        $experiment = $ab::choice('weight-dist-test', [
+            'heavy[80]',
+            'light[20]',
+        ]);
+
+        // Call track to trigger variant selection
+        $selected = $experiment->track('test-goal');
+
+        if (strpos($selected, 'heavy') !== false) {
+            $results['heavy']++;
+        } elseif (strpos($selected, 'light') !== false) {
+            $results['light']++;
+        }
+    }
+
+    // With 80:20 ratio, we expect roughly 400:100
+    // Allow some variance (65-95% for heavy, 5-35% for light)
+    $heavyPercent = ($results['heavy'] / 500) * 100;
+    $lightPercent = ($results['light'] / 500) * 100;
+
+    expect($heavyPercent)->toBeGreaterThan(65);
+    expect($heavyPercent)->toBeLessThan(95);
+    expect($lightPercent)->toBeGreaterThan(5);
+    expect($lightPercent)->toBeLessThan(35);
+});
+
 test('goal tracking creates goal record', function () {
     $ab = app()->make('Ab');
     $ab::initUser();
