@@ -1,0 +1,289 @@
+# Wonder AB
+
+**Blade-based A/B testing for Laravel 12+ with multiple analytics integrations.**
+
+[![Tests](https://github.com/wonderfulso/wonder-ab/actions/workflows/tests.yml/badge.svg)](https://github.com/wonderfulso/wonder-ab/actions)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
+Wonder AB makes it easy to create and manage A/B tests directly in your Laravel Blade templates with minimal configuration. Track experiments with your choice of analytics platform.
+
+## Features
+
+- 🎯 **Blade Directives** - Test variants directly in your templates
+- 📊 **Multiple Analytics** - Built-in support for Google Analytics 4, Plausible, webhooks, and more
+- 🔐 **Flexible Authentication** - Optional authentication for reporting dashboards
+- ⚡ **Performance Optimized** - Optional caching and database indexes
+- 🎲 **Weighted Variants** - Control traffic distribution
+- 🪆 **Nested Tests** - Run experiments within experiments
+- 🔒 **Sticky Sessions** - Consistent user experience across visits
+
+## Requirements
+
+- PHP 8.3+
+- Laravel 12.0+
+
+## Installation
+
+Install via Composer:
+
+```bash
+composer require wonderfulso/wonder-ab
+```
+
+Publish and run migrations:
+
+```bash
+php artisan vendor:publish --tag="wonder-ab-migrations"
+php artisan migrate
+```
+
+Optionally publish the config file:
+
+```bash
+php artisan vendor:publish --tag="wonder-ab-config"
+```
+
+## Quick Start
+
+### 1. Basic A/B Test in Blade
+
+```blade
+@ab('hero-text')
+    @condition('welcome')
+        <h1>Welcome to Our Site</h1>
+    @condition('get-started')
+        <h1>Ready to Get Started?</h1>
+    @track('signup')
+@endab
+```
+
+### 2. Track Goals
+
+```blade
+@ab('pricing-test')
+    @condition('monthly')
+        <button>$9/month</button>
+    @condition('yearly')
+        <button>$99/year</button>
+    @track('purchase')
+@endab
+
+{{-- Later in your code --}}
+@php
+    Ab::goal('purchase', 99.00); // Track with value
+@endphp
+```
+
+### 3. Controller-Based Tests
+
+```php
+use Wonderfulso\WonderAb\Facades\Ab;
+
+$variant = Ab::choice('checkout-flow', [
+    'one-step' => 'single page checkout',
+    'multi-step' => 'wizard checkout',
+]);
+
+// Use $variant to determine which view to show
+```
+
+### 4. Weighted Variants
+
+```blade
+@ab('feature-test')
+    @condition('new-feature[80]')
+        {{-- 80% of users see this --}}
+    @condition('old-feature[20]')
+        {{-- 20% of users see this --}}
+    @track('conversion')
+@endab
+```
+
+### 5. Nested Tests
+
+```blade
+@ab('homepage-layout')
+    @condition('modern')
+        <div class="modern-layout">
+            @ab('cta-button')
+                @condition('green')
+                    <button class="bg-green">Sign Up</button>
+                @condition('blue')
+                    <button class="bg-blue">Sign Up</button>
+                @track('click')
+            @endab
+        </div>
+    @condition('classic')
+        <div class="classic-layout">...</div>
+    @track('engagement')
+@endab
+```
+
+## Analytics Setup
+
+Wonder AB supports multiple analytics platforms. Configure in `config/wonder-ab.php`:
+
+### None (Default)
+```php
+'analytics' => [
+    'driver' => 'none', // Events stored in database only
+],
+```
+
+### Google Analytics 4
+```php
+'analytics' => [
+    'driver' => 'google',
+    'google' => [
+        'measurement_id' => env('WONDER_AB_GA4_MEASUREMENT_ID'),
+        'api_secret' => env('WONDER_AB_GA4_API_SECRET'),
+    ],
+],
+```
+
+### Plausible Analytics
+```php
+'analytics' => [
+    'driver' => 'plausible',
+    'plausible' => [
+        'domain' => env('WONDER_AB_PLAUSIBLE_DOMAIN'),
+        'api_key' => env('WONDER_AB_PLAUSIBLE_API_KEY'), // optional
+    ],
+],
+```
+
+### Webhook
+```php
+'analytics' => [
+    'driver' => 'webhook',
+    'webhook_url' => env('WONDER_AB_WEBHOOK_URL'),
+    'webhook_secret' => env('WONDER_AB_WEBHOOK_SECRET'),
+],
+```
+
+### Custom Driver
+```php
+'analytics' => [
+    'driver' => 'custom',
+    'custom_driver' => \App\Analytics\MyCustomDriver::class,
+],
+```
+
+## Viewing Results
+
+### CLI Commands
+
+```bash
+# View all experiments and their performance
+php artisan ab:report
+
+# View specific experiment
+php artisan ab:report hero-text
+
+# List all experiments
+php artisan ab:report --list
+
+# Export data to JSON
+php artisan ab:export
+```
+
+### Web Dashboard
+
+Visit `/ab/report` in your browser (requires authentication - see configuration).
+
+## Configuration
+
+Key configuration options in `config/wonder-ab.php`:
+
+```php
+return [
+    // Session identifier key
+    'cache_key' => 'wonder_ab_user',
+
+    // Allow ?abid parameter to set instance ID (useful for testing)
+    'allow_param' => env('WONDER_AB_ALLOW_PARAM', false),
+    'param_rate_limit' => env('WONDER_AB_PARAM_RATE_LIMIT', 10),
+
+    // Caching (improves performance)
+    'cache' => [
+        'enabled' => env('WONDER_AB_CACHE_ENABLED', true),
+        'driver' => env('WONDER_AB_CACHE_DRIVER', null), // null = default
+        'ttl' => env('WONDER_AB_CACHE_TTL', 86400),
+        'prefix' => 'wonder_ab',
+    ],
+
+    // Report authentication
+    'report_auth' => env('WONDER_AB_REPORT_AUTH', 'none'), // none, basic, closure, middleware
+    'report_username' => env('WONDER_AB_REPORT_USERNAME'),
+    'report_password' => env('WONDER_AB_REPORT_PASSWORD'),
+
+    // Analytics driver configuration
+    'analytics' => [
+        'driver' => env('WONDER_AB_ANALYTICS_DRIVER', 'none'),
+        // ... driver-specific config
+    ],
+];
+```
+
+## Environment Variables
+
+Add to your `.env` file:
+
+```env
+# Analytics
+WONDER_AB_ANALYTICS_DRIVER=none  # none, log, google, plausible, webhook, pivotal
+
+# Google Analytics 4
+WONDER_AB_GA4_MEASUREMENT_ID=
+WONDER_AB_GA4_API_SECRET=
+
+# Plausible
+WONDER_AB_PLAUSIBLE_DOMAIN=
+WONDER_AB_PLAUSIBLE_API_KEY=
+
+# Webhook
+WONDER_AB_WEBHOOK_URL=
+WONDER_AB_WEBHOOK_SECRET=
+
+# Report Authentication
+WONDER_AB_REPORT_AUTH=basic
+WONDER_AB_REPORT_USERNAME=admin
+WONDER_AB_REPORT_PASSWORD=secret
+
+# Optional: Performance
+WONDER_AB_CACHE_ENABLED=true
+WONDER_AB_ALLOW_PARAM=false
+```
+
+## Testing
+
+```bash
+composer test
+composer analyse  # PHPStan
+composer format   # Laravel Pint
+```
+
+## Security
+
+- Rate limiting on parameter overrides
+- JSON storage (no unserialize vulnerabilities)
+- Webhook signature verification
+- Optional authentication for reports
+
+## Documentation
+
+For advanced usage, custom drivers, and architecture details, see [DEVELOPER.md](DEVELOPER.md).
+
+## License
+
+The MIT License (MIT). See [LICENSE.md](LICENSE.md) for details.
+
+## Credits
+
+- [Rulian Estivalletti](https://github.com/ruliancrafter)
+- [All Contributors](../../contributors)
+
+## Support
+
+- **Issues**: [GitHub Issues](https://github.com/wonderfulso/wonder-ab/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/wonderfulso/wonder-ab/discussions)

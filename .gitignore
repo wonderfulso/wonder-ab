@@ -1,0 +1,41 @@
+# Dependencies
+/vendor
+/node_modules
+
+# IDE
+/.idea
+/.vscode
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Testing
+/coverage
+/.phpunit.cache
+.phpunit.result.cache
+
+# Build
+/build
+phpstan-baseline.neon
+
+# Laravel
+.env
+.env.backup
+.env.production
+
+# Composer
+composer.lock
+
+# Package Development
+/workbench
+testbench.yaml
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.claude
+CLAUDE.md
+sqllite.sqlite3

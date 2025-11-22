@@ -1,0 +1,92 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\DB;
+
+return new class extends Migration
+{
+    public function up()
+    {
+        // Convert metadata from serialized to JSON
+        Schema::table('ab_instance', function (Blueprint $table) {
+            $table->json('metadata')->nullable()->change();
+        });
+
+        // Migrate existing serialized data to JSON
+        $instances = DB::table('ab_instance')->whereNotNull('metadata')->get();
+        foreach ($instances as $instance) {
+            if (!empty($instance->metadata)) {
+                // Try to unserialize the data
+                $data = @unserialize($instance->metadata);
+                if ($data !== false || $instance->metadata === 'b:0;') {
+                    // Successfully unserialized or is serialized false
+                    DB::table('ab_instance')
+                        ->where('id', $instance->id)
+                        ->update(['metadata' => json_encode($data ?: [])]);
+                }
+            }
+        }
+
+        // Add indexes to ab_events table
+        Schema::table('ab_events', function (Blueprint $table) {
+            $table->index('instance_id', 'ab_events_instance_id_index');
+            $table->index('experiments_id', 'ab_events_experiments_id_index');
+            $table->index(['name', 'value'], 'ab_events_name_value_index');
+            $table->index('created_at', 'ab_events_created_at_index');
+        });
+
+        // Add indexes to ab_experiments table
+        Schema::table('ab_experiments', function (Blueprint $table) {
+            $table->unique(['experiment', 'goal'], 'ab_experiments_experiment_goal_unique');
+        });
+
+        // Add indexes to ab_goal table
+        Schema::table('ab_goal', function (Blueprint $table) {
+            $table->index('instance_id', 'ab_goal_instance_id_index');
+            $table->index('goal', 'ab_goal_goal_index');
+            $table->index('created_at', 'ab_goal_created_at_index');
+        });
+
+        // Add indexes to ab_instance table
+        Schema::table('ab_instance', function (Blueprint $table) {
+            $table->unique('instance', 'ab_instance_instance_unique');
+            $table->index('identifier', 'ab_instance_identifier_index');
+            $table->index('created_at', 'ab_instance_created_at_index');
+        });
+    }
+
+    public function down()
+    {
+        // Remove indexes from ab_instance
+        Schema::table('ab_instance', function (Blueprint $table) {
+            $table->dropIndex('ab_instance_instance_unique');
+            $table->dropIndex('ab_instance_identifier_index');
+            $table->dropIndex('ab_instance_created_at_index');
+        });
+
+        // Remove indexes from ab_goal
+        Schema::table('ab_goal', function (Blueprint $table) {
+            $table->dropIndex('ab_goal_instance_id_index');
+            $table->dropIndex('ab_goal_goal_index');
+            $table->dropIndex('ab_goal_created_at_index');
+        });
+
+        // Remove indexes from ab_experiments
+        Schema::table('ab_experiments', function (Blueprint $table) {
+            $table->dropUnique('ab_experiments_experiment_goal_unique');
+        });
+
+        // Remove indexes from ab_events
+        Schema::table('ab_events', function (Blueprint $table) {
+            $table->dropIndex('ab_events_instance_id_index');
+            $table->dropIndex('ab_events_experiments_id_index');
+            $table->dropIndex('ab_events_name_value_index');
+            $table->dropIndex('ab_events_created_at_index');
+        });
+
+        // Note: We don't convert JSON back to serialized format
+        // as that would be lossy and risky
+    }
+};

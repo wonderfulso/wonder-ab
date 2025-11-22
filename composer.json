@@ -1,0 +1,85 @@
+{
+    "name": "wonderfulso/wonder-ab",
+    "description": "Blade A/B testing for Laravel with multiple analytics integrations",
+    "version": "1.0.0",
+    "keywords": [
+        "laravel",
+        "ab-testing",
+        "split-testing",
+        "analytics",
+        "wonder-ab"
+    ],
+    "homepage": "https://github.com/wonderfulso/wonder-ab",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Rulian Estivalletti",
+            "email": "rulian@yeoldesoftwareco.com",
+            "role": "Developer"
+        }
+    ],
+    "require": {
+        "php": "^8.3",
+        "guzzlehttp/guzzle": "^7.9",
+        "illuminate/contracts": "^12.0",
+        "spatie/laravel-package-tools": "^1.16.0"
+    },
+    "require-dev": {
+        "laravel/pint": "^1.17",
+        "nunomaduro/collision": "^8.0",
+        "larastan/larastan": "^3.0",
+        "orchestra/testbench": "^10.0",
+        "pestphp/pest": "^3.0",
+        "pestphp/pest-plugin-arch": "^3.0",
+        "pestphp/pest-plugin-laravel": "^3.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "Wonderfulso\\WonderAb\\": "src/",
+            "Wonderfulso\\WonderAb\\Database\\Factories\\": "database/factories/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Wonderfulso\\WonderAb\\Tests\\": "tests/",
+            "Workbench\\App\\": "workbench/app/"
+        }
+    },
+    "scripts": {
+        "post-autoload-dump": "@composer run prepare",
+        "clear": "@php vendor/bin/testbench package:purge-wonder-ab --ansi",
+        "prepare": "@php vendor/bin/testbench package:discover --ansi",
+        "build": [
+            "@composer run prepare",
+            "@php vendor/bin/testbench workbench:build --ansi"
+        ],
+        "start": [
+            "Composer\\Config::disableProcessTimeout",
+            "@composer run build",
+            "@php vendor/bin/testbench serve"
+        ],
+        "test": "vendor/bin/pest",
+        "test-coverage": "vendor/bin/pest --coverage",
+        "format": "vendor/bin/pint",
+        "analyse": "vendor/bin/phpstan analyse --memory-limit=256M"
+    },
+    "config": {
+        "sort-packages": true,
+        "allow-plugins": {
+            "pestphp/pest-plugin": true,
+            "phpstan/extension-installer": true
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Wonderfulso\\WonderAb\\WonderAbServiceProvider"
+            ],
+            "aliases": {
+                "WonderAb": "Wonderfulso\\WonderAb\\Facades\\Ab"
+            }
+        }
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true
+}
