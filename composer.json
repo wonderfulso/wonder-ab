@@ -1,7 +1,6 @@
 {
     "name": "wonderfulso/wonder-ab",
     "description": "Blade A/B testing for Laravel with multiple analytics integrations",
-    "version": "1.0.1",
     "keywords": [
         "laravel",
         "ab-testing",
