@@ -14,7 +14,7 @@ class VerifyWebhookSignature
     public function handle(Request $request, Closure $next): Response
     {
         // Check if webhook is enabled
-        if (!config('wonder-ab.webhook.enabled', false)) {
+        if (! config('wonder-ab.webhook.enabled', false)) {
             return response()->json([
                 'success' => false,
                 'error' => 'Webhook endpoint disabled',
@@ -26,6 +26,7 @@ class VerifyWebhookSignature
 
         if (empty($secret)) {
             \Log::error('Wonder AB webhook secret not configured');
+
             return response()->json([
                 'success' => false,
                 'error' => 'Webhook not properly configured',
@@ -48,10 +49,10 @@ class VerifyWebhookSignature
         $expectedSignature = hash_hmac('sha256', $payload, $secret);
 
         // Compare signatures (timing-safe comparison)
-        if (!hash_equals($expectedSignature, $providedSignature)) {
+        if (! hash_equals($expectedSignature, $providedSignature)) {
             \Log::warning('Wonder AB webhook signature verification failed', [
                 'ip' => $request->ip(),
-                'provided' => substr($providedSignature, 0, 10) . '...',
+                'provided' => substr($providedSignature, 0, 10).'...',
             ]);
 
             return response()->json([
