@@ -2,13 +2,18 @@
 
 namespace Wonderfulso\WonderAb;
 
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Blade;
+use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Facades\Route;
 use Spatie\LaravelPackageTools\Commands\InstallCommand;
 use Spatie\LaravelPackageTools\Package;
 use Spatie\LaravelPackageTools\PackageServiceProvider;
 use Wonderfulso\WonderAb\Commands\AbExport;
 use Wonderfulso\WonderAb\Commands\AbReport;
 use Wonderfulso\WonderAb\Commands\AbValidate;
+use Wonderfulso\WonderAb\Commands\WebhookSecretGenerate;
 use Wonderfulso\WonderAb\Http\Middleware\WonderAbMiddleware;
 
 class WonderAbServiceProvider extends PackageServiceProvider
@@ -32,7 +37,7 @@ class WonderAbServiceProvider extends PackageServiceProvider
             ])
             ->hasViews('wonder-ab')
             ->hasRoute('web')
-            ->hasCommands(AbReport::class, AbExport::class, AbValidate::class)
+            ->hasCommands(AbReport::class, AbExport::class, AbValidate::class, WebhookSecretGenerate::class)
             ->hasInstallCommand(function (InstallCommand $command) {
                 $command
                     ->publishConfigFile()
@@ -67,13 +72,34 @@ class WonderAbServiceProvider extends PackageServiceProvider
         $this->registerCompiler();
     }
 
-    //    public function boot(): void
-    //    {
-    //        parent::boot();
-    //        Blade::directive('ab', function (string $expression) {
-    //            return sprintf("<H1>hi i'm an ab test %s after</H1>", $expression);
-    //        });
-    //    }
+    public function boot(): void
+    {
+        parent::boot();
+
+        // Register API routes
+        $this->registerApiRoutes();
+
+        // Register rate limiters
+        $this->registerRateLimiters();
+    }
+
+    protected function registerApiRoutes(): void
+    {
+        Route::group([
+            'prefix' => 'api',
+            'middleware' => 'api',
+        ], function () {
+            $this->loadRoutesFrom(__DIR__.'/../routes/api.php');
+        });
+    }
+
+    protected function registerRateLimiters(): void
+    {
+        RateLimiter::for('wonder-ab-webhook', function (Request $request) {
+            return Limit::perMinute(config('wonder-ab.webhook.rate_limit', 60))
+                ->by($request->ip());
+        });
+    }
 
     public function registerCompiler()
     {

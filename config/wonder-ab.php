@@ -112,4 +112,36 @@ return [
         // Custom driver class (must implement AnalyticsDriver interface)
         'custom_driver' => null,
     ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Webhook Goal Registration
+    |--------------------------------------------------------------------------
+    |
+    | Allow external services to register goals via webhook endpoint.
+    | Useful for tracking server-side events like "user signed up" or
+    | "payment completed" that occur outside the browser session.
+    |
+    */
+
+    'webhook' => [
+        // Enable or disable webhook endpoint
+        'enabled' => env('WONDER_AB_WEBHOOK_ENABLED', false),
+
+        // Secret key for HMAC-SHA256 signature verification
+        // Generate with: php artisan ab:webhook-secret
+        'secret' => env('WONDER_AB_WEBHOOK_SECRET'),
+
+        // Webhook endpoint path (relative to /api)
+        'path' => env('WONDER_AB_WEBHOOK_PATH', '/ab/webhook/goal'),
+
+        // Rate limiting (requests per minute per IP)
+        'rate_limit' => env('WONDER_AB_WEBHOOK_RATE_LIMIT', 60),
+
+        // Timestamp tolerance in seconds (reject requests with old timestamps)
+        'timestamp_tolerance' => env('WONDER_AB_WEBHOOK_TIMESTAMP_TOLERANCE', 300), // 5 minutes
+
+        // Idempotency cache TTL in seconds (prevent duplicate requests)
+        'idempotency_ttl' => env('WONDER_AB_WEBHOOK_IDEMPOTENCY_TTL', 86400), // 24 hours
+    ],
 ];

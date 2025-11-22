@@ -289,6 +289,14 @@ class WonderAb
     }
 
     /**
+     * Get the current instance ID (for webhooks and external integrations)
+     */
+    public static function getInstanceId(): ?string
+    {
+        return self::$session?->instance;
+    }
+
+    /**
      * Save condition key-value pair
      */
     public function saveCondition(string $condition, string $data): void

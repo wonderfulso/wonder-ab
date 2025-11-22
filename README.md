@@ -169,6 +169,66 @@ Wonder AB supports multiple analytics platforms. Configure in `config/wonder-ab.
 ],
 ```
 
+## Webhook Goal Registration
+
+Track server-side events (like "user signed up" or "payment completed") via webhook API:
+
+### 1. Generate Webhook Secret
+
+```bash
+php artisan ab:webhook-secret
+```
+
+### 2. Configure Environment
+
+```env
+WONDER_AB_WEBHOOK_ENABLED=true
+WONDER_AB_WEBHOOK_SECRET=your-generated-secret-here
+```
+
+### 3. Get Instance ID for External Apps
+
+When redirecting users to external services (like payment processors), pass the instance ID:
+
+```php
+use Wonderfulso\WonderAb\Facades\Ab;
+
+// Get the current user's instance ID
+$instanceId = Ab::getInstanceId();
+
+// Pass it to external service
+return redirect("https://payment-processor.com/checkout?return_id={$instanceId}");
+```
+
+The external service can then send this instance ID back via webhook when the goal is achieved.
+
+### 4. Send Goal Events
+
+```bash
+# Calculate HMAC-SHA256 signature
+payload='{"instance":"abc123","goal":"purchase","value":"99.99","timestamp":"2024-11-21T12:00:00Z","idempotency_key":"unique-id"}'
+signature=$(echo -n "$payload" | openssl dgst -sha256 -hmac "your-secret" | awk '{print $2}')
+
+# POST to webhook endpoint
+curl -X POST https://yoursite.com/api/ab/webhook/goal \
+  -H "Content-Type: application/json" \
+  -H "X-AB-Signature: $signature" \
+  -d "$payload"
+```
+
+**Payload Fields:**
+- `instance` (required) - User's A/B testing instance ID
+- `goal` (required) - Goal name (e.g., "purchase", "signup")
+- `value` (optional) - Goal value (e.g., purchase amount)
+- `timestamp` (required) - ISO 8601 timestamp (must be within 5 minutes)
+- `idempotency_key` (required) - Unique request ID to prevent duplicates
+
+**Security Features:**
+- HMAC-SHA256 signature verification
+- Timestamp validation (prevents replay attacks)
+- Idempotency keys (prevents duplicate goals)
+- Rate limiting (60 requests/minute per IP)
+
 ## Viewing Results
 
 ### CLI Commands
@@ -185,6 +245,9 @@ php artisan ab:report --list
 
 # Export data to JSON
 php artisan ab:export
+
+# Generate webhook secret
+php artisan ab:webhook-secret
 ```
 
 ### Web Dashboard
@@ -230,7 +293,7 @@ return [
 Add to your `.env` file:
 
 ```env
-# Analytics
+# Analytics (outbound - send experiment data to external services)
 WONDER_AB_ANALYTICS_DRIVER=none  # none, log, google, plausible, webhook, pivotal
 
 # Google Analytics 4
@@ -241,9 +304,15 @@ WONDER_AB_GA4_API_SECRET=
 WONDER_AB_PLAUSIBLE_DOMAIN=
 WONDER_AB_PLAUSIBLE_API_KEY=
 
-# Webhook
+# Webhook (outbound analytics)
 WONDER_AB_WEBHOOK_URL=
 WONDER_AB_WEBHOOK_SECRET=
+
+# Webhook Goal Registration (inbound - receive goal events from external services)
+WONDER_AB_WEBHOOK_ENABLED=false
+WONDER_AB_WEBHOOK_SECRET=  # Generate with: php artisan ab:webhook-secret
+WONDER_AB_WEBHOOK_RATE_LIMIT=60
+WONDER_AB_WEBHOOK_PATH=/ab/webhook/goal
 
 # Report Authentication
 WONDER_AB_REPORT_AUTH=basic
