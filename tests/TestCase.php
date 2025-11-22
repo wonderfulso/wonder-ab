@@ -34,11 +34,13 @@ class TestCase extends Orchestra
         }
         touch($dbPath);
         config()->set('database.connections.sqlite.database', $dbPath);
+        // Order matters: create parent tables before child tables with foreign keys
         foreach ([
-            'create_laravel_ab_events_table.php',
-            'create_laravel_ab_experiments_table.php',
-            'create_laravel_ab_goal_table.php',
-            'create_laravel_ab_instance_table.php'] as $filepath) {
+            'create_wonder_ab_experiments_table.php',  // No dependencies
+            'create_wonder_ab_instances_table.php',    // No dependencies
+            'create_wonder_ab_events_table.php',       // References experiments & instances
+            'create_wonder_ab_goals_table.php',        // References instances
+        ] as $filepath) {
             $migration = include sprintf(__DIR__.'/../database/migrations/%s.stub', $filepath);
             $migration->up();
         }

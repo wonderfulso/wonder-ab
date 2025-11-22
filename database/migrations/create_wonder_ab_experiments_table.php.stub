@@ -6,21 +6,21 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    public function up()
+    public function up(): void
     {
-
-        Schema::create('ab_experiments', function(Blueprint $table)
-        {
-            $table->increments('id');
+        Schema::create('ab_experiments', function (Blueprint $table) {
+            $table->id();
             $table->string('experiment');
             $table->string('goal')->nullable();
             $table->timestamps();
-        });
 
+            // Indexes
+            $table->unique(['experiment', 'goal']);
+        });
     }
 
-        public function down()
-        {
-            Schema::drop('ab_experiments');
-        }
+    public function down(): void
+    {
+        Schema::dropIfExists('ab_experiments');
+    }
 };

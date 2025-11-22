@@ -25,11 +25,10 @@ class WonderAbServiceProvider extends PackageServiceProvider
             ->hasConfigFile()
             ->hasViews()
             ->hasMigrations([
-                'create_laravel_ab_events_table',
-                'create_laravel_ab_experiments_table',
-                'create_laravel_ab_goal_table',
-                'create_laravel_ab_instance_table',
-                'migrate_metadata_to_json_and_add_indexes',
+                'create_wonder_ab_experiments_table',
+                'create_wonder_ab_instances_table',
+                'create_wonder_ab_events_table',
+                'create_wonder_ab_goals_table',
             ])
             ->hasViews('wonder-ab')
             ->hasRoute('web')
