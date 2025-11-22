@@ -1,9 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Request;
-use Wonderfulso\WonderAb\Models\Experiments;
 use Wonderfulso\WonderAb\Models\Instance;
-use Wonderfulso\WonderAb\WonderAb;
 
 beforeEach(function () {
     $ab = app()->make('Ab');

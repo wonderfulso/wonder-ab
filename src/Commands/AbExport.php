@@ -37,6 +37,7 @@ class AbExport extends Command
         $goals = Goal::with('instance')->orderBy('created_at')->get()->map(function (Goal $goal) {
             /** @var Instance|null $instanceModel */
             $instanceModel = $goal->instance;
+
             return [
                 'goal' => $goal->goal,
                 'value' => $goal->value,
@@ -59,6 +60,7 @@ class AbExport extends Command
             $instanceModel = $event->instance;
             /** @var Experiments|null $experimentModel */
             $experimentModel = $event->experiment;
+
             return [
                 'experiment' => $experimentModel?->experiment,
                 'name' => $event->name,

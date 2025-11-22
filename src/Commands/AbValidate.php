@@ -57,7 +57,7 @@ class AbValidate extends Command
                             }
                         }
                     } else {
-                        $this->info("  ℹ Index checking skipped (not MySQL database)");
+                        $this->info('  ℹ Index checking skipped (not MySQL database)');
                     }
                 } catch (\Exception $e) {
                     $this->warn("  ⚠ Unable to check indexes: {$e->getMessage()}");

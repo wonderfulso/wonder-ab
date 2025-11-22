@@ -2,7 +2,6 @@
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
-use Wonderfulso\WonderAb\WonderAb;
 
 beforeEach(function () {
     config()->set('wonder-ab.allow_param', true);

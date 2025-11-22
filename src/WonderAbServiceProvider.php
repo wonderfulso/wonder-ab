@@ -3,13 +3,13 @@
 namespace Wonderfulso\WonderAb;
 
 use Illuminate\Support\Facades\Blade;
+use Spatie\LaravelPackageTools\Commands\InstallCommand;
+use Spatie\LaravelPackageTools\Package;
+use Spatie\LaravelPackageTools\PackageServiceProvider;
 use Wonderfulso\WonderAb\Commands\AbExport;
 use Wonderfulso\WonderAb\Commands\AbReport;
 use Wonderfulso\WonderAb\Commands\AbValidate;
 use Wonderfulso\WonderAb\Http\Middleware\WonderAbMiddleware;
-use Spatie\LaravelPackageTools\Commands\InstallCommand;
-use Spatie\LaravelPackageTools\Package;
-use Spatie\LaravelPackageTools\PackageServiceProvider;
 
 class WonderAbServiceProvider extends PackageServiceProvider
 {

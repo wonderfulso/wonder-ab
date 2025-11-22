@@ -1,12 +1,6 @@
 <?php
 
 use Wonderfulso\WonderAb\Analytics\AnalyticsManager;
-use Wonderfulso\WonderAb\Analytics\Drivers\GoogleAnalytics4Driver;
-use Wonderfulso\WonderAb\Analytics\Drivers\LogDriver;
-use Wonderfulso\WonderAb\Analytics\Drivers\NoneDriver;
-use Wonderfulso\WonderAb\Analytics\Drivers\PivotalDriver;
-use Wonderfulso\WonderAb\Analytics\Drivers\PlausibleDriver;
-use Wonderfulso\WonderAb\Analytics\Drivers\WebhookDriver;
 use Wonderfulso\WonderAb\Contracts\AnalyticsDriver;
 
 beforeEach(function () {
