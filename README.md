@@ -53,7 +53,7 @@ php artisan vendor:publish --tag="wonder-ab-config"
         <h1>Welcome to Our Site</h1>
     @condition('get-started')
         <h1>Ready to Get Started?</h1>
-    @track('signup')
+@track('signup')
 ```
 
 **Note**: `@track` ends the experiment block - there is no `@endab` directive.
@@ -66,7 +66,7 @@ php artisan vendor:publish --tag="wonder-ab-config"
         <button>$9/month</button>
     @condition('yearly')
         <button>$99/year</button>
-    @track('purchase')
+@track('purchase')
 
 {{-- Later in your code, when purchase is completed --}}
 @goal('purchase', 99.00)
@@ -99,7 +99,7 @@ Control traffic distribution with weights in square brackets:
         <div class="new-design">New Feature</div>
     @condition('old-feature[20]')
         <div class="old-design">Old Feature</div>
-    @track('conversion')
+@track('conversion')
 ```
 
 **Weights explained**:
@@ -123,7 +123,7 @@ Control traffic distribution with weights in square brackets:
         </div>
     @condition('classic')
         <div class="classic-layout">...</div>
-    @track('engagement')
+@track('engagement')
 ```
 
 ## Analytics Setup
