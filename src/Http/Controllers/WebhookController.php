@@ -44,14 +44,15 @@ class WebhookController
             return response()->json([
                 'success' => false,
                 'error' => 'Invalid timestamp',
-                'message' => 'Timestamp must be within ' . $tolerance . ' seconds of current time',
+                'message' => 'Timestamp must be within '.$tolerance.' seconds of current time',
             ], 422);
         }
 
         // Check idempotency key (prevent duplicate requests)
-        $idempotencyKey = 'webhook_idempotency:' . $data['idempotency_key'];
+        $idempotencyKey = 'webhook_idempotency:'.$data['idempotency_key'];
         if (Cache::has($idempotencyKey)) {
             $cached = Cache::get($idempotencyKey);
+
             return response()->json([
                 'success' => true,
                 'goal_id' => $cached['goal_id'],
@@ -64,11 +65,11 @@ class WebhookController
         // Find instance
         $instance = Instance::where('instance', $data['instance'])->first();
 
-        if (!$instance) {
+        if (! $instance) {
             return response()->json([
                 'success' => false,
                 'error' => 'Instance not found',
-                'message' => 'No A/B testing instance found with ID: ' . $data['instance'],
+                'message' => 'No A/B testing instance found with ID: '.$data['instance'],
             ], 404);
         }
 

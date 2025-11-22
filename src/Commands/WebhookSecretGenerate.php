@@ -31,7 +31,7 @@ class WebhookSecretGenerate extends Command
         $this->newLine();
 
         $this->comment('Webhook endpoint will be available at:');
-        $this->comment(config('app.url') . '/api/ab/webhook/goal');
+        $this->comment(config('app.url').'/api/ab/webhook/goal');
         $this->newLine();
 
         $this->warn('Keep this secret safe! Anyone with this secret can register goals for your A/B tests.');
